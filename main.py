@@ -156,7 +156,7 @@ def main():
     results = classifier.classify_companies()
     
     # Save detailed results to CSV
-    results.to_csv('classified_companies_detailed.csv', index=False)
+    results.to_csv('data/classified_companies_detailed.csv', index=False)
     
     # Print summary statistics
     total = len(results)
