@@ -15,7 +15,21 @@
 
 3. Run the Application
    ```bash
-   python main.py
+   python main.py -i <input_file.csv> -o <output_file.csv>
+   ```
+
+   Arguments:
+   - `-i, --input`: Path to input CSV file containing company data
+     - Required columns: Company Name, Founded Year, Total Employees, Headquarters, Industry, Description
+   
+   - `-o, --output`: Path where the output CSV file will be saved
+     - Contains: Basic company info, growth potential, risk assessments, key strengths, and classification results
+   
+   - `-h, --help`: Show detailed help message and exit
+
+   Example:
+   ```bash
+   python main.py -i companies.csv -o analysis_results.csv
    ```
 
 ## Requirements

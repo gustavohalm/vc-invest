@@ -7,6 +7,7 @@ import os
 from typing import Dict, List
 import time
 from pydantic import BaseModel, Field
+import argparse
 
 class CompanyAnalysis(BaseModel):
     """Pydantic model for GPT company analysis response"""
@@ -21,11 +22,12 @@ class CompanyAnalysis(BaseModel):
 class CompanyClassifier:
     def __init__(self, data_path: str, openai_key: str):
         """Initialize classifier with data and OpenAI key"""
+        print(f'Setting up Enviroment and reading data {data_path}')
         self.df = pd.read_csv(data_path)
         self.current_year = datetime.now().year
         openai.api_key = openai_key
 
-    def get_gpt_analysis(self, company_name: str, description: str, industry: str) -> CompanyAnalysis:
+    def get_gpt_analysis(self, company_name: str, description: str, industry: str, current:int, total:int) -> CompanyAnalysis:
         """
         Use GPT to analyze company description and provide insights
         Returns validated CompanyAnalysis object
@@ -38,6 +40,8 @@ class CompanyClassifier:
         """
 
         try:    
+            percentage = total/100 * current
+            print(f'Getting GPT anaysis for company {company_name}. {percentage}% Complete')
             response = openai.beta.chat.completions.parse(
                 model="gpt-4o-2024-08-06",
                 messages=[{"role": "system", "content": f"You are a venture capital analyst expert at analyzing technology companies. Provide analysis in structured JSON format. {prompt}"}],
@@ -99,12 +103,15 @@ class CompanyClassifier:
         """Classify companies based on all criteria including GPT analysis"""
         results = []
         
-        for _, company in self.df.iterrows():
+        for i, company in self.df.iterrows():
             # Get GPT analysis
+#            percentage_process = ( len(self.df)/(i+1))/100
             gpt_analysis = self.get_gpt_analysis(
                 company['Company Name'],
                 company['Description'],
-                company['Industry']
+                company['Industry'],
+                i+1,
+                len(self.df)
             )
             
             # Basic criteria
@@ -146,18 +153,17 @@ class CompanyClassifier:
             
         return pd.DataFrame(results)
 
-def main():
+def main(i, o):
     # Get OpenAI API key from environment variable
     openai_key = os.getenv('OPENAI_API_KEY')
     if not openai_key:
         raise ValueError("Please set OPENAI_API_KEY environment variable")
     
-    classifier = CompanyClassifier('data/data.csv', openai_key)
+    classifier = CompanyClassifier(i, openai_key)
     results = classifier.classify_companies()
     
     # Save detailed results to CSV
-    results.to_csv('data/classified_companies_detailed.csv', index=False)
-    
+    results.to_csv(o, index=False)
     # Print summary statistics
     total = len(results)
     interesting = sum(results['Interesting'] == 'Yes')
@@ -177,4 +183,35 @@ def main():
         print(f"  Competitive Advantage: {company['Competitive Advantage']}")
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(
+        description='Analyze companies using GPT and classify them based on various criteria.',
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument(
+        '-i', '--input',
+        help='Path to input CSV file containing company data.\n'
+             'The CSV should include columns for:\n'
+             '- Company Name\n'
+             '- Founded Year\n'
+             '- Total Employees\n'
+             '- Headquarters\n'
+             '- Industry\n'
+             '- Description'
+    )
+    parser.add_argument(
+        '-o', '--output',
+        help='Path where the output CSV file will be saved.\n'
+             'The analysis results will include:\n'
+             '- Basic company information\n'
+             '- Growth potential and risk assessments\n'
+             '- Key strengths and concerns\n'
+             '- Classification results'
+    )
+    args = parser.parse_args()
+    
+    if not args.input or not args.output:
+        print("Error: Both input and output arguments are required")
+        print("Usage: python script.py -i <input_file.csv> -o <output_file.csv>")
+        exit(1)
+        
+    main(args.input, args.output)
